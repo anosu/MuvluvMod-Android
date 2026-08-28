@@ -13,7 +13,6 @@ using Il2CppCysharp.Threading.Tasks;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
-using Utility.Notifications;
 
 namespace MuvluvMod.Patches;
 
@@ -176,10 +175,7 @@ public static class TranslationPatch
         );
 
         if (result.MatchedObjects > 0 && result.TranslatedFields == 0)
-        {
-            Logger.Warn("MasterData translation matched objects but changed no fields");
-            Toast.Warning("MasterData翻译", "已匹配数据类型，但没有字段被翻译");
-        }
+            Logger.Info("MasterData translation made no changes for this load");
     }
 
     private static UniTask<T> WaitForTranslation<T>(

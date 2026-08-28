@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using MelonLoader;
 using MelonLoader.Utils;
@@ -28,9 +29,11 @@ public static class Config
     private static bool _initializing;
     private static bool _entriesBound;
     private static MelonPreferences_Category _preferenceCategory;
+    private static readonly List<MelonPreferences_Category> PreferenceCategories = new();
 
     public static void Initialize()
     {
+        bool createPreferenceFile = !File.Exists(FilePath);
         _initializing = true;
         try
         {
@@ -41,6 +44,11 @@ public static class Config
             }
 
             _preferenceCategory.LoadFromFile(false);
+            if (createPreferenceFile)
+            {
+                foreach (var category in PreferenceCategories)
+                    category.SaveToFile(false);
+            }
         }
         finally
         {
@@ -60,14 +68,14 @@ public static class Config
         EnableSkipButton = CreateEntry(
             general,
             "EnableSkipButton",
-            false,
-            "是否总是开启跳过按钮（默认关闭）"
+            true,
+            "是否总是开启跳过按钮（默认开启）"
         );
         VoiceInterruption = CreateEntry(
             general,
             "VoiceInterruption",
-            true,
-            "剧情中播放下一句话时是否中断当前语音"
+            false,
+            "剧情中播放下一句话时是否中断当前语音（默认关闭）"
         );
         AutoSkipBattle = CreateEntry(
             general,
@@ -132,6 +140,7 @@ public static class Config
         var category = MelonPreferences.CreateCategory(name);
         category.SetFilePath(FilePath, false, false);
         _preferenceCategory ??= category;
+        PreferenceCategories.Add(category);
         return category;
     }
 

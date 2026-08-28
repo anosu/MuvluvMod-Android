@@ -17,6 +17,7 @@ using Utility.Notifications;
     MuvluvMod.ModInfo.Version,
     MuvluvMod.ModInfo.Author
 )]
+[assembly: HarmonyDontPatchAll]
 
 namespace MuvluvMod;
 
