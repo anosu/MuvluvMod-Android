@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>MuvluvMod</AssemblyName>
+    <Product>MuvluvMod</Product>
+    <Version>1.2.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>MuvluvMod</RootNamespace>
+    <OutputPath>bin\$(Configuration)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <DebugType>none</DebugType>
+    <DependencyRoot Condition="'$(DependencyRoot)' == ''">$(MSBuildProjectDirectory)\..\dependencies</DependencyRoot>
+    <MelonLoaderReferenceDirectory Condition="'$(MelonLoaderReferenceDirectory)' == ''">$(DependencyRoot)\melonloader\net6</MelonLoaderReferenceDirectory>
+    <GameInteropReferenceDirectory Condition="'$(GameInteropReferenceDirectory)' == ''">$(DependencyRoot)\interop\assemblies</GameInteropReferenceDirectory>
+    <UtilityAssemblyPath Condition="'$(UtilityAssemblyPath)' == ''">$(MSBuildProjectDirectory)\..\..\Utility\Utility\bin\Release\net6.0\Utility.dll</UtilityAssemblyPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MelonAssemblies Include="$(MelonLoaderReferenceDirectory)\*.dll" />
+    <Reference Include="@(MelonAssemblies)">
+      <Private>false</Private>
+    </Reference>
+
+    <GameAssemblies Include="$(GameInteropReferenceDirectory)\*.dll" />
+    <Reference Include="@(GameAssemblies)">
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="Utility">
+      <HintPath>$(UtilityAssemblyPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateLocalDependencies" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(MelonLoaderReferenceDirectory)\MelonLoader.dll')"
+           Text="MelonLoader references were not found at '$(MelonLoaderReferenceDirectory)'. Override MelonLoaderReferenceDirectory with a valid net6 reference directory." />
+    <Error Condition="!Exists('$(GameInteropReferenceDirectory)\Assembly-CSharp.dll')"
+           Text="Game interop references were not found at '$(GameInteropReferenceDirectory)'. Override GameInteropReferenceDirectory with the Patcher-generated Il2CppAssemblies directory." />
+    <Error Condition="!Exists('$(UtilityAssemblyPath)')"
+           Text="Utility.dll was not found at '$(UtilityAssemblyPath)'. Build Utility against the same game interop directory or override UtilityAssemblyPath." />
+  </Target>
+</Project>

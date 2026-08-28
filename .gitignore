@@ -1,0 +1,20 @@
+# IDE state
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build and release output
+**/bin/
+**/obj/
+artifacts/
+.build-check/
+
+# Local compile-time dependencies
+/dependencies/
+
+# Local packages and logs
+*.nupkg
+*.snupkg
+*.log
