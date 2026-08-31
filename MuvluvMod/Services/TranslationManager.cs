@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Il2CppTMPro;
 using MelonLoader;
@@ -144,6 +145,12 @@ public sealed class TranslationManager
     {
         if (tables == null || tables.Count == 0)
         {
+            if (_translationCache.IsMissingFromManifest(TranslationPaths.Names))
+            {
+                Logger.Info("Names translation is not published yet");
+                return true;
+            }
+
             Logger.Warn("Names translation load failed");
             Toast.Warning("加载失败", "角色名称翻译加载失败");
             return false;
@@ -160,6 +167,12 @@ public sealed class TranslationManager
     {
         if (tables == null || tables.Count == 0)
         {
+            if (_translationCache.IsMissingFromManifest(TranslationPaths.MasterData))
+            {
+                Logger.Info("MasterData translation is not published yet");
+                return true;
+            }
+
             Logger.Warn("MasterData translation load failed");
             Toast.Warning("加载失败", "MasterData翻译加载失败");
             return false;
@@ -207,6 +220,18 @@ public sealed class TranslationManager
 
         if (translations == null)
         {
+            if (
+                _translationCache.IsMissingFromManifest(
+                    TranslationPaths.Scenes,
+                    sceneId.ToString(CultureInfo.InvariantCulture)
+                )
+            )
+            {
+                _sceneTranslations[sceneId] = new Dictionary<string, string>();
+                Logger.Info($"Scenario is not translated yet: {sceneId}");
+                return;
+            }
+
             Logger.Warn($"Scenario translation load failed: {sceneId}");
             Toast.Warning("加载失败", $"剧本ID: {sceneId}");
             return;

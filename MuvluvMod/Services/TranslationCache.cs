@@ -259,6 +259,9 @@ internal sealed class TranslationCache
             _ => null,
         };
 
+    internal bool IsMissingFromManifest(string category, string resourceId = null) =>
+        _manifest != null && GetManifestHash(category, resourceId) == null;
+
     private async Task<T> DownloadJsonAsync<T>(string url)
         where T : class
     {

@@ -11,9 +11,6 @@
 artifacts/
 .build-check/
 
-# Local compile-time dependencies
-/dependencies/
-
 # Local packages and logs
 *.nupkg
 *.snupkg
