@@ -1,3 +1,4 @@
 <Solution>
-  <Project Path="MuvluvMod/MuvluvMod.csproj" />
+    <Project Path="MuvluvMod/MuvluvMod.csproj" />
+    <Project Path="shared/Utility/Utility/Utility.csproj" />
 </Solution>
