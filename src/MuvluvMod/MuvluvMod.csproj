@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <GenerateModVersion>true</GenerateModVersion>
+        <ModPlatform>android</ModPlatform>
         <TargetFramework>net6.0</TargetFramework>
         <AssemblyName>MuvluvMod</AssemblyName>
         <Product>MuvluvMod</Product>
@@ -119,5 +119,13 @@
             Private="false"
         />
     </ItemGroup>
-    <Import Project="$(ModRepositoryRoot)build/SharedDependencies.props" />
+    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/SharedDependencies.props" />
+    <Target Name="CollectExtraPackageFiles" BeforeTargets="GetModPackageFiles">
+        <ItemGroup>
+            <ModPackageFile
+                Include="$(ModRepositoryRoot)dependencies/font/sarasagothicsc-bold"
+                Destination="UserData/MuvluvMod/sarasagothicsc-bold"
+            />
+        </ItemGroup>
+    </Target>
 </Project>
