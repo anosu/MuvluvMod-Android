@@ -5,7 +5,9 @@
   "kind": "android",
   "assembly": "MuvluvMod",
   "project": "src/MuvluvMod/MuvluvMod.csproj",
-  "tests": [],
+  "tests": [
+    "tests/MuvluvMod.Cache.Tests/MuvluvMod.Cache.Tests.csproj"
+  ],
   "package": {
     "name": "MuvluvMod-Android.zip",
     "files": [
