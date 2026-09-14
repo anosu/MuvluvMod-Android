@@ -1,6 +1,6 @@
 using System;
-using Il2CppAssets.Api.Client.ConnectionManager;
 using HarmonyLib;
+using Il2CppAssets.Api.Client.ConnectionManager;
 
 namespace MuvluvMod.Patches;
 

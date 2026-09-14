@@ -59,19 +59,17 @@ public sealed class TranslationManager
 
         _ = EnsureSharedTranslationsLoadedAsync();
         _fontLoadCoroutine = MelonCoroutines.Start(
-            _fallbackFont.Load(
-                () =>
-                {
-                    if (_shutdown)
-                        return;
+            _fallbackFont.Load(() =>
+            {
+                if (_shutdown)
+                    return;
 
-                    _loadedFont = _fallbackFont.Asset;
-                    if (!TMP_Settings.fallbackFontAssets.Contains(_loadedFont))
-                        TMP_Settings.fallbackFontAssets.Add(_loadedFont);
+                _loadedFont = _fallbackFont.Asset;
+                if (!TMP_Settings.fallbackFontAssets.Contains(_loadedFont))
+                    TMP_Settings.fallbackFontAssets.Add(_loadedFont);
 
-                    Logger.Info($"Fallback font registered: {_loadedFont.name}");
-                }
-            )
+                Logger.Info($"Fallback font registered: {_loadedFont.name}");
+            })
         );
     }
 

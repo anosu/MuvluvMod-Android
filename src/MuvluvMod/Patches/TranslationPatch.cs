@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using HarmonyLib;
 using Il2CppAssets.Api.Client;
 using Il2CppAssets.Api.MemoryDB;
 using Il2CppAssets.GameUi.Scenario;
@@ -10,7 +11,6 @@ using Il2CppAssets.GameUi.Scenario.Choice;
 using Il2CppAssets.GameUi.Scenario.History;
 using Il2CppAssets.GameUi.Service;
 using Il2CppCysharp.Threading.Tasks;
-using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
 
@@ -149,10 +149,7 @@ public static class TranslationPatch
         ref UniTask<Il2CppReferenceArray<IDataObject>> __result
     )
     {
-        if (
-            !Config.TranslationEnabled.Value
-            || Core.Translations == null
-        )
+        if (!Config.TranslationEnabled.Value || Core.Translations == null)
             return;
 
         __result = WaitForTranslation(

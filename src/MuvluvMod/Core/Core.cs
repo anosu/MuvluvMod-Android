@@ -47,11 +47,7 @@ public sealed class Core : MelonMod
             PatchManager.Initialize();
 
             Logger.Info($"{ModInfo.Name} loaded successfully");
-            Toast.Success(
-                ModInfo.Name,
-                $"Mod 加载成功，版本: {ModInfo.Version}",
-                duration: 7f
-            );
+            Toast.Success(ModInfo.Name, $"Mod 加载成功，版本: {ModInfo.Version}", duration: 7f);
         }
         catch (Exception e)
         {
@@ -67,9 +63,10 @@ public sealed class Core : MelonMod
     {
         Logging.SetSink(entry =>
         {
-            string text = entry.Exception == null
-                ? $"[{entry.Category}] {entry.Message}"
-                : $"[{entry.Category}] {entry.Message}\n{entry.Exception}";
+            string text =
+                entry.Exception == null
+                    ? $"[{entry.Category}] {entry.Message}"
+                    : $"[{entry.Category}] {entry.Message}\n{entry.Exception}";
 
             switch (entry.Level)
             {
@@ -103,9 +100,7 @@ public sealed class Core : MelonMod
         {
             Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds),
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
-            $"{ModInfo.Name}/{ModInfo.Version}"
-        );
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"{ModInfo.Name}/{ModInfo.Version}");
 
         string cacheDirectory = ResolveUserDataPath(Config.TranslationCacheDirectory.Value);
         Logger.Info($"Translation cache directory: {cacheDirectory}");
@@ -119,9 +114,7 @@ public sealed class Core : MelonMod
 
         Translations = new TranslationManager(
             translationCache,
-            new AssetBundleLoader<TMP_FontAsset>(
-                ResolveUserDataPath(Config.FontBundlePath.Value)
-            )
+            new AssetBundleLoader<TMP_FontAsset>(ResolveUserDataPath(Config.FontBundlePath.Value))
         );
         MissingSceneReporter = new MissingSceneReporter(_httpClient);
     }

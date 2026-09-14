@@ -160,8 +160,8 @@ public sealed class MasterDataTranslator
             ? className
             : $"{classNamespace}.{className}";
         string wrapperFullName = "Il2Cpp" + fullName;
-        Type managedType = interopAssembly.GetType(wrapperFullName)
-            ?? interopAssembly.GetType(fullName);
+        Type managedType =
+            interopAssembly.GetType(wrapperFullName) ?? interopAssembly.GetType(fullName);
         if (managedType == null || !typeof(Il2CppObjectBase).IsAssignableFrom(managedType))
         {
             Logger.Warn($"MasterData wrapper type not found: {wrapperFullName}");
