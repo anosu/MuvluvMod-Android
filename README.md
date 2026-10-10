@@ -40,6 +40,8 @@ python shared/ModEngineering/scripts/project.py package
 
 ## 开发
 
+补丁安装部分失败后会回滚；回滚失败时保留 Harmony 句柄，供后续清理重试。字体可能被游戏文本持有，按进程生命周期保留，不支持热替换或强制销毁。
+
 源码位于 `src/`，测试位于 `tests/`。项目配置由 `.csproj` 管理，依赖版本由 Git 子模块记录。构建、VS 联调和发布命令见[公共工程说明](https://github.com/anosu/ModEngineering/blob/main/docs/CONVENTIONS.md)。
 
 Android 使用 MelonPreferences，保留配置键和 UserData 路径，修改后重启生效。资源地址及路径统一修剪空格，无效 HTTP/HTTPS 地址及空路径回退默认值；文本和数值编辑只写日志，布尔开关保留 Toast。字体归入口生命周期，后台翻译和缺失剧本请求接收卸载取消信号；同一资源的旧请求不能删除后来新建的请求。协程尚在交回游戏加载结果时保留运行依赖，卸载成功后解除配置事件、字体注册和 HTTP 资源。主数据实际写入前重新检查翻译开关，关闭翻译仍正常完成游戏加载。

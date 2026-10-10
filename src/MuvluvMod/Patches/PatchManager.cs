@@ -18,10 +18,10 @@ public static class PatchManager
 
         ResetState();
         var harmony = new HarmonyLib.Harmony(ModInfo.Name);
+        _harmony = harmony;
         try
         {
             harmony.PatchAll(typeof(PatchManager).Assembly);
-            _harmony = harmony;
             Logger.Info("Harmony patches applied");
         }
         catch
@@ -29,13 +29,14 @@ public static class PatchManager
             try
             {
                 harmony.UnpatchSelf();
+                _harmony = null;
+                ResetState();
             }
             catch (System.Exception e)
             {
                 Logger.Error($"Harmony rollback failed: {e}");
             }
 
-            ResetState();
             throw;
         }
     }
