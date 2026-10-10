@@ -6,6 +6,18 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile
+            Include="../../src/MuvluvMod/Core/ResourceStringValidator.cs"
+            Link="Production/ResourceStringValidator.cs"
+        />
+        <Compile
+            Include="../../src/MuvluvMod/Patches/TranslationPatch.cs"
+            Link="Production/TranslationPatch.cs"
+        />
+        <Compile
+            Include="../../src/MuvluvMod/Services/MissingSceneReporter.cs"
+            Link="Production/MissingSceneReporter.cs"
+        />
+        <Compile
             Include="../../shared/Utility/src/Utility/Caching/*.cs;../../shared/Utility/src/Utility/Cryptography/*.cs"
             Link="Shared/%(Filename)%(Extension)"
         />

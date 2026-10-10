@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using MelonLoader;
@@ -27,12 +28,14 @@ public static class Config
     public static MelonPreferences_Entry<bool> SubmitMissingScenes { get; private set; }
 
     private static bool _initializing;
+    private static readonly List<Action> Subscriptions = new();
     private static bool _entriesBound;
     private static MelonPreferences_Category _preferenceCategory;
     private static readonly List<MelonPreferences_Category> PreferenceCategories = new();
 
     public static void Initialize()
     {
+        Shutdown();
         _initializing = true;
         try
         {
@@ -147,8 +150,26 @@ public static class Config
         string description
     )
     {
-        var entry = category.CreateEntry(key, defaultValue, description, description);
-        entry.OnEntryValueChanged.Subscribe(
+        var validator =
+            defaultValue is string text
+            && (
+                category.Identifier.StartsWith("Translation")
+                || key.Contains("Url")
+                || key.Contains("URL")
+            )
+                ? new ResourceStringValidator(text, key == "CdnURL")
+                : null;
+        var entry =
+            category.GetEntry<T>(key)
+            ?? category.CreateEntry(
+                key,
+                defaultValue,
+                description,
+                description,
+                validator: validator
+            );
+        Subscribe(
+            entry,
             (_, newValue) =>
             {
                 if (_initializing)
@@ -156,9 +177,26 @@ public static class Config
 
                 category.SaveToFile(false);
                 Logger.Info($"[{category.Identifier}] {key} => {newValue}");
-                Toast.Info($"[{category.Identifier}]", $"{key} => {newValue}");
+                if (newValue is bool)
+                    Toast.Info($"[{category.Identifier}]", $"{key} => {newValue}");
             }
         );
         return entry;
+    }
+
+    private static void Subscribe<T>(MelonPreferences_Entry<T> entry, LemonAction<T, T> callback)
+    {
+        entry.OnEntryValueChanged.Subscribe(callback);
+        Subscriptions.Add(() => entry.OnEntryValueChanged.Unsubscribe(callback));
+    }
+
+    internal static void Shutdown()
+    {
+        _initializing = true;
+        foreach (var unsubscribe in Subscriptions)
+            unsubscribe();
+        Subscriptions.Clear();
+        PreferenceCategories.Clear();
+        _entriesBound = false;
     }
 }

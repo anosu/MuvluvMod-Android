@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using HarmonyLib;
 
 namespace MuvluvMod.Patches;
@@ -10,7 +9,6 @@ public static class PatchManager
 {
     private static HarmonyLib.Harmony _harmony;
 
-    public static long CurrentSceneId { get; private set; }
     public static bool IsPlayingScenario { get; private set; }
 
     public static void Initialize()
@@ -42,37 +40,35 @@ public static class PatchManager
         }
     }
 
-    public static void Shutdown()
+    public static bool Shutdown()
     {
+        if (TranslationPatch.HasPendingLoads)
+        {
+            Logger.Warn("Shutdown deferred: scenario or master data load is active");
+            return false;
+        }
         var harmony = _harmony;
-        _harmony = null;
         try
         {
             harmony?.UnpatchSelf();
             if (harmony != null)
                 Logger.Info("Harmony patches removed");
         }
-        finally
+        catch (System.Exception e)
         {
-            ResetState();
+            Logger.Error($"Harmony shutdown failed: {e}");
+            return false;
         }
+        _harmony = null;
+        TranslationPatch.Reset();
+        ResetState();
+        return true;
     }
-
-    public static void SetCurrentScene(long sceneId) => CurrentSceneId = sceneId;
 
     public static void SetScenarioPlaying(bool playing) => IsPlayingScenario = playing;
 
     private static void ResetState()
     {
-        CurrentSceneId = 0;
         IsPlayingScenario = false;
-    }
-
-    public static bool TryGetCurrentSceneTranslation(out Dictionary<string, string> translation)
-    {
-        translation = null;
-        return Config.TranslationEnabled.Value
-            && Core.Translations != null
-            && Core.Translations.TryGetSceneTranslation(CurrentSceneId, out translation);
     }
 }

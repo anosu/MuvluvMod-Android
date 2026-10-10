@@ -13,6 +13,7 @@ using Il2CppAssets.GameUi.Service;
 using Il2CppCysharp.Threading.Tasks;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
+using Utility.Notifications;
 
 namespace MuvluvMod.Patches;
 
@@ -22,12 +23,26 @@ namespace MuvluvMod.Patches;
 [HarmonyPatch]
 public static class TranslationPatch
 {
+    private static long _currentSceneId;
+    private static int _pendingLoads;
+    internal static bool HasPendingLoads => _pendingLoads > 0;
+
+    internal static void Reset() => _currentSceneId = 0;
+
+    private static bool TryGetCurrentSceneTranslation(out Dictionary<string, string> translation)
+    {
+        translation = null;
+        return Config.TranslationEnabled.Value
+            && Core.Translations != null
+            && Core.Translations.TryGetSceneTranslation(_currentSceneId, out translation);
+    }
+
     [HarmonyPrefix]
     [HarmonyPatch(typeof(EpisodeService), nameof(EpisodeService.DownloadSceneFrameMasters))]
     public static void BeginSceneTranslationLoad(long sceneMasterId, out Task __state)
     {
         Logger.Info($"Scene: {sceneMasterId}");
-        PatchManager.SetCurrentScene(sceneMasterId);
+        _currentSceneId = sceneMasterId;
 
         if (!Config.TranslationEnabled.Value || Core.Translations == null)
         {
@@ -61,10 +76,7 @@ public static class TranslationPatch
     [HarmonyPatch(typeof(ScenarioController), nameof(ScenarioController.GenerateFrames))]
     public static void TranslateFrames(Il2CppReferenceArray<SceneFrameMaster> masters)
     {
-        if (
-            !PatchManager.TryGetCurrentSceneTranslation(out var sceneTranslations)
-            || masters == null
-        )
+        if (!TryGetCurrentSceneTranslation(out var sceneTranslations) || masters == null)
             return;
 
         try
@@ -123,7 +135,7 @@ public static class TranslationPatch
     {
         if (
             isAnswer
-            && PatchManager.TryGetCurrentSceneTranslation(out var sceneTranslations)
+            && TryGetCurrentSceneTranslation(out var sceneTranslations)
             && sceneTranslations.TryGetValue(phrase, out var translatedText)
         )
             phrase = translatedText;
@@ -137,7 +149,7 @@ public static class TranslationPatch
     public static void TranslateChoice(ScenarioChoiceElementComponent.Args args)
     {
         if (
-            PatchManager.TryGetCurrentSceneTranslation(out var sceneTranslations)
+            TryGetCurrentSceneTranslation(out var sceneTranslations)
             && sceneTranslations.TryGetValue(args.Text, out var translatedText)
         )
             args.Text = translatedText;
@@ -162,7 +174,8 @@ public static class TranslationPatch
 
     private static void ApplyMasterDataTranslation(Il2CppReferenceArray<IDataObject> masterData)
     {
-        if (Core.Translations.MasterDataTranslations.Count == 0)
+        // 等待下载期间可能关闭翻译；在修改游戏对象前读取当前开关。
+        if (!Config.TranslationEnabled.Value || Core.Translations.MasterDataTranslations.Count == 0)
             return;
 
         var result = Core.Translations.TranslateMasterData(masterData);
@@ -172,7 +185,10 @@ public static class TranslationPatch
         );
 
         if (result.MatchedObjects > 0 && result.TranslatedFields == 0)
-            Logger.Info("MasterData translation made no changes for this load");
+        {
+            Logger.Warn("MasterData translation matched objects but changed no fields");
+            Toast.Warning("MasterData翻译", "已匹配数据类型，但没有字段被翻译");
+        }
     }
 
     private static UniTask<T> WaitForTranslation<T>(
@@ -183,15 +199,24 @@ public static class TranslationPatch
     )
     {
         var completion = new UniTaskCompletionSource<T>();
-        MelonCoroutines.Start(
-            AwaitTranslationCoroutine(
-                sourceTask,
-                translationTask,
-                applyTranslation,
-                operation,
-                completion
-            )
-        );
+        _pendingLoads++;
+        try
+        {
+            MelonCoroutines.Start(
+                AwaitTranslationCoroutine(
+                    sourceTask,
+                    translationTask,
+                    applyTranslation,
+                    operation,
+                    completion
+                )
+            );
+        }
+        catch
+        {
+            _pendingLoads--;
+            throw;
+        }
         return completion.Task;
     }
 
@@ -203,35 +228,42 @@ public static class TranslationPatch
         UniTaskCompletionSource<T> completion
     )
     {
-        var sourceAwaiter = sourceTask.GetAwaiter();
-        while (!sourceAwaiter.IsCompleted)
-            yield return null;
-
-        T result;
         try
         {
-            result = sourceAwaiter.GetResult();
-        }
-        catch (Exception e)
-        {
-            Logger.Error($"{operation} source task failed: {e.Message}");
-            completion.TrySetException(new Il2CppSystem.Exception(e.Message));
-            yield break;
-        }
+            var sourceAwaiter = sourceTask.GetAwaiter();
+            while (!sourceAwaiter.IsCompleted)
+                yield return null;
 
-        while (!translationTask.IsCompleted)
-            yield return null;
+            T result;
+            try
+            {
+                result = sourceAwaiter.GetResult();
+            }
+            catch (Exception e)
+            {
+                Logger.Error($"{operation} source task failed: {e.Message}");
+                completion.TrySetException(new Il2CppSystem.Exception(e.Message));
+                yield break;
+            }
 
-        try
-        {
-            translationTask.GetAwaiter().GetResult();
-            applyTranslation?.Invoke(result);
-        }
-        catch (Exception e)
-        {
-            Logger.Error($"{operation} failed: {e}");
-        }
+            while (!translationTask.IsCompleted)
+                yield return null;
 
-        completion.TrySetResult(result);
+            try
+            {
+                translationTask.GetAwaiter().GetResult();
+                applyTranslation?.Invoke(result);
+            }
+            catch (Exception e)
+            {
+                Logger.Error($"{operation} failed: {e}");
+            }
+
+            completion.TrySetResult(result);
+        }
+        finally
+        {
+            _pendingLoads--;
+        }
     }
 }

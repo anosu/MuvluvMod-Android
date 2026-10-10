@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using Il2CppTMPro;
 using MelonLoader;
 using MelonLoader.Utils;
@@ -28,10 +30,14 @@ public sealed class Core : MelonMod
     private const int PooledConnectionIdleTimeoutMinutes = 2;
 
     private static HttpClient _httpClient;
+    private static CancellationTokenSource _shutdown;
+    private static AssetBundleLoader<TMP_FontAsset> _font;
+    private static IEnumerator _fontLoad;
+    private static object _fontCoroutine;
 
     public static MelonLogger.Instance Log { get; private set; }
     public static TranslationManager Translations { get; private set; }
-    public static MissingSceneReporter MissingSceneReporter { get; private set; }
+    internal static MissingSceneReporter MissingSceneReporter { get; private set; }
 
     public override void OnInitializeMelon()
     {
@@ -44,6 +50,7 @@ public sealed class Core : MelonMod
             InitializeServices();
             MissingSceneReporter.Initialize();
             Translations.Initialize();
+            LoadFont();
             PatchManager.Initialize();
 
             Logger.Info($"{ModInfo.Name} loaded successfully");
@@ -86,6 +93,7 @@ public sealed class Core : MelonMod
 
     private static void InitializeServices()
     {
+        _shutdown = new CancellationTokenSource();
         var handler = new SocketsHttpHandler
         {
             AutomaticDecompression =
@@ -109,14 +117,35 @@ public sealed class Core : MelonMod
             cacheDirectory,
             Config.TranslationLanguage.Value,
             Config.TranslationPreferLocalFiles.Value,
-            _httpClient
+            _httpClient,
+            _shutdown.Token
         );
 
-        Translations = new TranslationManager(
-            translationCache,
-            new AssetBundleLoader<TMP_FontAsset>(ResolveUserDataPath(Config.FontBundlePath.Value))
+        Translations = new TranslationManager(translationCache);
+        _font = new AssetBundleLoader<TMP_FontAsset>(
+            ResolveUserDataPath(Config.FontBundlePath.Value)
         );
-        MissingSceneReporter = new MissingSceneReporter(_httpClient);
+        MissingSceneReporter = new MissingSceneReporter(
+            _httpClient,
+            () => Config.SubmitMissingScenes.Value,
+            _shutdown.Token
+        );
+    }
+
+    private static void LoadFont()
+    {
+        if (!Config.TranslationEnabled.Value || _font == null || _font.IsLoaded || _font.IsLoading)
+            return;
+        _fontLoad = _font.Load(
+            () =>
+            {
+                if (!TMP_Settings.fallbackFontAssets.Contains(_font.Asset))
+                    TMP_Settings.fallbackFontAssets.Add(_font.Asset);
+                Logger.Info($"Fallback font registered: {_font.Asset.name}");
+            },
+            error => Toast.Error("字体加载失败", error.Message)
+        );
+        _fontCoroutine = MelonCoroutines.Start(_fontLoad);
     }
 
     private static string ResolveUserDataPath(string path)
@@ -133,11 +162,13 @@ public sealed class Core : MelonMod
     {
         try
         {
-            PatchManager.Shutdown();
+            if (!PatchManager.Shutdown())
+                return;
         }
         catch (Exception e)
         {
             Log?.Error($"Patch shutdown failed: {e}");
+            return;
         }
 
         try
@@ -150,7 +181,19 @@ public sealed class Core : MelonMod
         }
 
         Translations = null;
+        Config.Shutdown();
         MissingSceneReporter = null;
+        _shutdown?.Cancel();
+        _shutdown?.Dispose();
+        _shutdown = null;
+        if (_fontCoroutine != null)
+            MelonCoroutines.Stop(_fontCoroutine);
+        (_fontLoad as IDisposable)?.Dispose();
+        if (_font?.IsLoaded == true)
+            TMP_Settings.fallbackFontAssets.Remove(_font.Asset);
+        _font = null;
+        _fontLoad = null;
+        _fontCoroutine = null;
         _httpClient?.Dispose();
         _httpClient = null;
 

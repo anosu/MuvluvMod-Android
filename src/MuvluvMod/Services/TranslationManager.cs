@@ -4,9 +4,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
-using Il2CppTMPro;
-using MelonLoader;
-using Utility.Assets;
 using Utility.Notifications;
 
 namespace MuvluvMod.Services;
@@ -20,15 +17,12 @@ using NameTranslationTables = Dictionary<string, Dictionary<string, string>>;
 public sealed class TranslationManager
 {
     private readonly TranslationCache _translationCache;
-    private readonly AssetBundleLoader<TMP_FontAsset> _fallbackFont;
     private readonly MasterDataTranslator _masterDataTranslator = new();
     private readonly ConcurrentDictionary<long, Dictionary<string, string>> _sceneTranslations =
         new();
     private readonly ConcurrentDictionary<long, Lazy<Task>> _pendingSceneLoads = new();
     private readonly object _sharedTranslationsLoadLock = new();
 
-    private object _fontLoadCoroutine;
-    private TMP_FontAsset _loadedFont;
     private Task _sharedTranslationsLoadTask;
     private volatile bool _shutdown;
     private volatile bool _sharedTranslationsLoaded;
@@ -42,13 +36,9 @@ public sealed class TranslationManager
         Dictionary<string, Dictionary<string, string>>
     > MasterDataTranslations { get; private set; } = new MasterTranslationTables();
 
-    internal TranslationManager(
-        TranslationCache translationCache,
-        AssetBundleLoader<TMP_FontAsset> fallbackFont
-    )
+    internal TranslationManager(TranslationCache translationCache)
     {
         _translationCache = translationCache;
-        _fallbackFont = fallbackFont;
     }
 
     public void Initialize()
@@ -58,35 +48,11 @@ public sealed class TranslationManager
             return;
 
         _ = EnsureSharedTranslationsLoadedAsync();
-        _fontLoadCoroutine = MelonCoroutines.Start(
-            _fallbackFont.Load(() =>
-            {
-                if (_shutdown)
-                    return;
-
-                _loadedFont = _fallbackFont.Asset;
-                if (!TMP_Settings.fallbackFontAssets.Contains(_loadedFont))
-                    TMP_Settings.fallbackFontAssets.Add(_loadedFont);
-
-                Logger.Info($"Fallback font registered: {_loadedFont.name}");
-            })
-        );
     }
 
     public void Shutdown()
     {
         _shutdown = true;
-        if (_fontLoadCoroutine != null)
-        {
-            MelonCoroutines.Stop(_fontLoadCoroutine);
-            _fontLoadCoroutine = null;
-        }
-
-        if (_loadedFont != null)
-        {
-            TMP_Settings.fallbackFontAssets.Remove(_loadedFont);
-            _loadedFont = null;
-        }
     }
 
     public bool TryGetSceneTranslation(long sceneId, out Dictionary<string, string> translation) =>
@@ -108,7 +74,7 @@ public sealed class TranslationManager
 
     public Task EnsureSharedTranslationsLoadedAsync()
     {
-        if (_shutdown || !Config.TranslationEnabled.Value)
+        if (_shutdown)
             return Task.CompletedTask;
 
         lock (_sharedTranslationsLoadLock)
@@ -128,7 +94,14 @@ public sealed class TranslationManager
         var namesTask = _translationCache.LoadNameTranslationsAsync();
         var masterDataTask = _translationCache.LoadMasterDataTranslationsAsync();
 
-        await Task.WhenAll(namesTask, masterDataTask).ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(namesTask, masterDataTask).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
         if (_shutdown)
             return;
 
@@ -203,15 +176,25 @@ public sealed class TranslationManager
         }
         finally
         {
-            _pendingSceneLoads.TryRemove(sceneId, out _);
+            ((ICollection<KeyValuePair<long, Lazy<Task>>>)_pendingSceneLoads).Remove(
+                new(sceneId, pendingLoad)
+            );
         }
     }
 
     private async Task LoadSceneTranslationAsync(long sceneId)
     {
-        var translations = await _translationCache
-            .LoadSceneTranslationsAsync(sceneId)
-            .ConfigureAwait(false);
+        Dictionary<string, string> translations;
+        try
+        {
+            translations = await _translationCache
+                .LoadSceneTranslationsAsync(sceneId)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         if (_shutdown)
             return;
